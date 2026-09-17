@@ -31,10 +31,36 @@ class ScamShieldApp extends StatelessWidget {
             ),
           ],
         ),
-        body: const Center(
-          child: Text(
-            'Welcome to Scam Shield',
-            style: TextStyle(fontSize: 22),
+        body: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Card(
+            color: Colors.blue.shade50,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.verified_user,
+                    size: 60,
+                    color: Colors.blue,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'You are protected',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Scam Shield helps you identify suspicious messages and links.',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
