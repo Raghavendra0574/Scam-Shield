@@ -19,14 +19,22 @@ class ScamShieldApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const Scaffold(
-        body: Center(
-          child: Text(
-            'Scam Shield',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
+      home: Scaffold(
+        appBar: AppBar(
+          title: const Text('Scam Shield'),
+          centerTitle: true,
+          leading: const Icon(Icons.shield),
+          actions: [
+            IconButton(
+              onPressed: () {},
+              icon: const Icon(Icons.settings),
             ),
+          ],
+        ),
+        body: const Center(
+          child: Text(
+            'Welcome to Scam Shield',
+            style: TextStyle(fontSize: 22),
           ),
         ),
       ),
