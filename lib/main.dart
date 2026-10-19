@@ -32,9 +32,31 @@ class ScamHomePage extends StatefulWidget {
 }
 
 class _ScamHomePageState extends State<ScamHomePage> {
-  // Controls the text entered by the user.
+  // Stores the message entered by the user.
   final TextEditingController _messageController =
       TextEditingController();
+
+  // Handles the Check Now button.
+  void _checkMessage() {
+    final message = _messageController.text.trim();
+
+    if (message.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a message to check.'),
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Message received: ${message.length} characters.',
+        ),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -57,20 +79,18 @@ class _ScamHomePageState extends State<ScamHomePage> {
           ),
         ],
       ),
-
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Protection status card
+              // Protection status card.
               Card(
                 color: Colors.blue.shade50,
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(
                         Icons.verified_user,
@@ -98,7 +118,7 @@ class _ScamHomePageState extends State<ScamHomePage> {
 
               const SizedBox(height: 28),
 
-              // Message input section
+              // Message input heading.
               const Text(
                 'Check a suspicious message',
                 style: TextStyle(
@@ -109,12 +129,14 @@ class _ScamHomePageState extends State<ScamHomePage> {
 
               const SizedBox(height: 10),
 
+              // Message input field.
               TextField(
                 controller: _messageController,
                 maxLines: 4,
                 maxLength: 1000,
                 keyboardType: TextInputType.multiline,
-                textCapitalization: TextCapitalization.sentences,
+                textCapitalization:
+                    TextCapitalization.sentences,
                 decoration: const InputDecoration(
                   labelText: 'Message to check',
                   hintText:
@@ -124,6 +146,20 @@ class _ScamHomePageState extends State<ScamHomePage> {
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                   prefixIcon: Icon(Icons.message_outlined),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Check Now button.
+              ElevatedButton.icon(
+                onPressed: _checkMessage,
+                icon: const Icon(Icons.search),
+                label: const Text('CHECK NOW'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 16,
+                  ),
                 ),
               ),
             ],
