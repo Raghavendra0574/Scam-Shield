@@ -32,11 +32,13 @@ class ScamHomePage extends StatefulWidget {
 }
 
 class _ScamHomePageState extends State<ScamHomePage> {
-  // Stores the message entered by the user.
   final TextEditingController _messageController =
       TextEditingController();
 
-  // Handles the Check Now button.
+  bool? _isSuspicious;
+  List<String> _matchedWords = [];
+
+  // Basic rule-based scam detection for demonstration.
   void _checkMessage() {
     final message = _messageController.text.trim();
 
@@ -49,13 +51,33 @@ class _ScamHomePageState extends State<ScamHomePage> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Message received: ${message.length} characters.',
-        ),
-      ),
-    );
+    final lowerMessage = message.toLowerCase();
+
+    const suspiciousKeywords = [
+      'urgent',
+      'winner',
+      'won a prize',
+      'prize',
+      'verify account',
+      'click here',
+      'click the link',
+      'claim now',
+      'send money',
+      'bank account',
+      'otp',
+      'password',
+      'free gift',
+      'limited time',
+    ];
+
+    final matched = suspiciousKeywords
+        .where((word) => lowerMessage.contains(word))
+        .toList();
+
+    setState(() {
+      _matchedWords = matched;
+      _isSuspicious = matched.isNotEmpty;
+    });
   }
 
   @override
@@ -85,7 +107,7 @@ class _ScamHomePageState extends State<ScamHomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Protection status card.
+              // Protection status card
               Card(
                 color: Colors.blue.shade50,
                 child: Padding(
@@ -118,7 +140,6 @@ class _ScamHomePageState extends State<ScamHomePage> {
 
               const SizedBox(height: 28),
 
-              // Message input heading.
               const Text(
                 'Check a suspicious message',
                 style: TextStyle(
@@ -129,14 +150,21 @@ class _ScamHomePageState extends State<ScamHomePage> {
 
               const SizedBox(height: 10),
 
-              // Message input field.
+              // Message input field
               TextField(
                 controller: _messageController,
                 maxLines: 4,
                 maxLength: 1000,
                 keyboardType: TextInputType.multiline,
-                textCapitalization:
-                    TextCapitalization.sentences,
+                textCapitalization: TextCapitalization.sentences,
+                onChanged: (_) {
+                  if (_isSuspicious != null) {
+                    setState(() {
+                      _isSuspicious = null;
+                      _matchedWords = [];
+                    });
+                  }
+                },
                 decoration: const InputDecoration(
                   labelText: 'Message to check',
                   hintText:
@@ -151,7 +179,7 @@ class _ScamHomePageState extends State<ScamHomePage> {
 
               const SizedBox(height: 16),
 
-              // Check Now button.
+              // Check Now button
               ElevatedButton.icon(
                 onPressed: _checkMessage,
                 icon: const Icon(Icons.search),
@@ -162,6 +190,62 @@ class _ScamHomePageState extends State<ScamHomePage> {
                   ),
                 ),
               ),
+
+              const SizedBox(height: 20),
+
+              // Show the result after checking a message
+              if (_isSuspicious != null)
+                Card(
+                  color: _isSuspicious!
+                      ? Colors.red.shade50
+                      : Colors.green.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          _isSuspicious!
+                              ? Icons.warning_amber_rounded
+                              : Icons.check_circle_outline,
+                          size: 42,
+                          color: _isSuspicious!
+                              ? Colors.red
+                              : Colors.green,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          _isSuspicious!
+                              ? 'Potential Scam Signs Detected'
+                              : 'No Obvious Scam Signs Detected',
+                          style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.bold,
+                            color: _isSuspicious!
+                                ? Colors.red.shade800
+                                : Colors.green.shade800,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        if (_isSuspicious!)
+                          Text(
+                            'Indicators found: '
+                            '${_matchedWords.join(', ')}',
+                          )
+                        else
+                          const Text(
+                            'No configured keywords were found.',
+                          ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'This is a basic demonstration, not a '
+                          'reliable scam detector. Always verify '
+                          'messages independently.',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
