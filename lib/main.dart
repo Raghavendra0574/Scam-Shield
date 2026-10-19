@@ -13,6 +13,7 @@ class ScamShieldApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Scam Shield',
+
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.blue,
@@ -20,7 +21,13 @@ class ScamShieldApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
+
+      // Named route configuration
       home: const ScamHomePage(),
+
+      routes: {
+        '/dashboard': (context) => const DashboardPage(),
+      },
     );
   }
 }
@@ -90,21 +97,14 @@ class _ScamHomePageState extends State<ScamHomePage> {
         centerTitle: true,
         leading: const Icon(Icons.shield),
         actions: [
-          // Navigate to Dashboard
           IconButton(
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const DashboardPage(),
-                ),
-              );
+              // Navigate using the named route.
+              Navigator.pushNamed(context, '/dashboard');
             },
             icon: const Icon(Icons.dashboard),
             tooltip: 'Dashboard',
           ),
-
-          // Settings button
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.settings),
@@ -112,13 +112,14 @@ class _ScamHomePageState extends State<ScamHomePage> {
           ),
         ],
       ),
+
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Protection Status Card
+              // Protection status card
               Card(
                 color: Colors.blue.shade50,
                 child: Padding(
@@ -161,7 +162,7 @@ class _ScamHomePageState extends State<ScamHomePage> {
 
               const SizedBox(height: 10),
 
-              // Form and Validation
+              // Form and validation
               Form(
                 key: _formKey,
                 child: TextFormField(
@@ -206,7 +207,7 @@ class _ScamHomePageState extends State<ScamHomePage> {
 
               const SizedBox(height: 16),
 
-              // Check Now Button
+              // Check Now button
               ElevatedButton.icon(
                 onPressed: _checkMessage,
                 icon: const Icon(Icons.search),
@@ -220,7 +221,7 @@ class _ScamHomePageState extends State<ScamHomePage> {
 
               const SizedBox(height: 20),
 
-              // Scam Detection Result
+              // Scam detection result
               if (_isSuspicious != null)
                 Card(
                   color: _isSuspicious!
@@ -241,9 +242,7 @@ class _ScamHomePageState extends State<ScamHomePage> {
                               ? Colors.red
                               : Colors.green,
                         ),
-
                         const SizedBox(height: 10),
-
                         Text(
                           _isSuspicious!
                               ? 'Potential Scam Signs Detected'
@@ -256,9 +255,7 @@ class _ScamHomePageState extends State<ScamHomePage> {
                                 : Colors.green.shade800,
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
                         if (_isSuspicious!)
                           Text(
                             'Indicators found: '
@@ -268,9 +265,7 @@ class _ScamHomePageState extends State<ScamHomePage> {
                           const Text(
                             'No configured keywords were found.',
                           ),
-
                         const SizedBox(height: 12),
-
                         const Text(
                           'This is a basic demonstration, not a '
                           'reliable scam detector. Always verify '
