@@ -6,10 +6,15 @@ import 'providers/scan_provider.dart';
 import 'widgets/protection_card.dart';
 import 'widgets/scam_result_card.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final scanProvider = ScanProvider();
+  await scanProvider.load();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ScanProvider(),
+    ChangeNotifierProvider<ScanProvider>.value(
+      value: scanProvider,
       child: const ScamShieldApp(),
     ),
   );
@@ -31,7 +36,9 @@ class ScamShieldApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const ScamHomePage(),
-      routes: {'/dashboard': (context) => const DashboardPage()},
+      routes: {
+        '/dashboard': (context) => const DashboardPage(),
+      },
     );
   }
 }
@@ -46,14 +53,17 @@ class ScamHomePage extends StatefulWidget {
 class _ScamHomePageState extends State<ScamHomePage> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _messageController = TextEditingController();
+  final TextEditingController _messageController =
+      TextEditingController();
 
   void _checkMessage() {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    context.read<ScanProvider>().checkMessage(_messageController.text);
+    context.read<ScanProvider>().checkMessage(
+          _messageController.text,
+        );
   }
 
   @override
@@ -68,11 +78,12 @@ class _ScamHomePageState extends State<ScamHomePage> {
       children: [
         const Text(
           'Check a suspicious message',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-
         const SizedBox(height: 12),
-
         Form(
           key: _formKey,
           child: TextFormField(
@@ -97,17 +108,17 @@ class _ScamHomePageState extends State<ScamHomePage> {
             },
             decoration: const InputDecoration(
               labelText: 'Message to check',
-              hintText: 'Paste a suspicious SMS, email, or message here...',
-              helperText: 'Never share real passwords or one-time codes.',
+              hintText:
+                  'Paste a suspicious SMS, email, or message here...',
+              helperText:
+                  'Never share real passwords or one-time codes.',
               border: OutlineInputBorder(),
               alignLabelWithHint: true,
               prefixIcon: Icon(Icons.message_outlined),
             ),
           ),
         ),
-
         const SizedBox(height: 16),
-
         ElevatedButton.icon(
           onPressed: _checkMessage,
           icon: const Icon(Icons.search),
@@ -116,9 +127,7 @@ class _ScamHomePageState extends State<ScamHomePage> {
             padding: const EdgeInsets.symmetric(vertical: 16),
           ),
         ),
-
         const SizedBox(height: 20),
-
         Consumer<ScanProvider>(
           builder: (context, scan, child) {
             if (scan.isSuspicious == null) {
@@ -149,8 +158,8 @@ class _ScamHomePageState extends State<ScamHomePage> {
     final pagePadding = isMobile
         ? 16.0
         : isDesktop
-        ? 32.0
-        : 24.0;
+            ? 32.0
+            : 24.0;
 
     return Scaffold(
       appBar: AppBar(
@@ -182,9 +191,15 @@ class _ScamHomePageState extends State<ScamHomePage> {
                   ? Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Expanded(flex: 2, child: ProtectionCard()),
+                        const Expanded(
+                          flex: 2,
+                          child: ProtectionCard(),
+                        ),
                         const SizedBox(width: 24),
-                        Expanded(flex: 3, child: _buildScannerSection()),
+                        Expanded(
+                          flex: 3,
+                          child: _buildScannerSection(),
+                        ),
                       ],
                     )
                   : Column(

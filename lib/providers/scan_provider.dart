@@ -1,16 +1,8 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
-
-class ScamIndicator {
-  final String phrase;
-  final String category;
-  final int weight;
-
-  const ScamIndicator({
-    required this.phrase,
-    required this.category,
-    required this.weight,
-  });
-}
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ScanActivity {
   final bool isSuspicious;
@@ -29,9 +21,42 @@ class ScanActivity {
     required this.riskScore,
     required this.riskLevel,
     required this.scannedAt,
-  }) : matchedWords = List.unmodifiable(matchedWords),
-       categories = List.unmodifiable(categories),
-       detectedUrls = List.unmodifiable(detectedUrls);
+  })  : matchedWords = List.unmodifiable(matchedWords),
+        categories = List.unmodifiable(categories),
+        detectedUrls = List.unmodifiable(detectedUrls);
+
+  Map<String, dynamic> toJson() {
+    return {
+      'isSuspicious': isSuspicious,
+      'matchedWords': matchedWords,
+      'categories': categories,
+      'detectedUrls': detectedUrls,
+      'riskScore': riskScore,
+      'riskLevel': riskLevel,
+      'scannedAt': scannedAt.toIso8601String(),
+    };
+  }
+
+  factory ScanActivity.fromJson(Map<String, dynamic> json) {
+    return ScanActivity(
+      isSuspicious: json['isSuspicious'] == true,
+      matchedWords: List<String>.from(
+        json['matchedWords'] as List? ?? const [],
+      ),
+      categories: List<String>.from(
+        json['categories'] as List? ?? const [],
+      ),
+      detectedUrls: List<String>.from(
+        json['detectedUrls'] as List? ?? const [],
+      ),
+      riskScore: (json['riskScore'] as num?)?.toInt() ?? 0,
+      riskLevel: json['riskLevel'] as String? ?? 'Unknown',
+      scannedAt: DateTime.tryParse(
+            json['scannedAt'] as String? ?? '',
+          ) ??
+          DateTime.now(),
+    );
+  }
 }
 
 class _IndicatorRule {
@@ -39,10 +64,18 @@ class _IndicatorRule {
   final String category;
   final int weight;
 
-  const _IndicatorRule(this.phrase, this.category, this.weight);
+  const _IndicatorRule(
+    this.phrase,
+    this.category,
+    this.weight,
+  );
 }
 
 class ScanProvider extends ChangeNotifier {
+  static const String _totalScansKey = 'scam_shield_total_scans';
+  static const String _warningsFoundKey = 'scam_shield_warnings_found';
+  static const String _recentActivityKey = 'scam_shield_recent_activity';
+
   bool? _isSuspicious;
   List<String> _matchedWords = [];
   List<String> _categories = [];
@@ -56,6 +89,33 @@ class ScanProvider extends ChangeNotifier {
 
   final List<ScanActivity> _recentActivity = [];
 
+  bool _isLoaded = false;
+  Future<void> _pendingSave = Future<void>.value();
+
+  bool get isLoaded => _isLoaded;
+
+  bool? get isSuspicious => _isSuspicious;
+
+  List<String> get matchedWords =>
+      List.unmodifiable(_matchedWords);
+
+  List<String> get categories =>
+      List.unmodifiable(_categories);
+
+  List<String> get detectedUrls =>
+      List.unmodifiable(_detectedUrls);
+
+  int get riskScore => _riskScore;
+
+  String get riskLevel => _riskLevel;
+
+  int get totalScans => _totalScans;
+
+  int get warningsFound => _warningsFound;
+
+  List<ScanActivity> get recentActivity =>
+      List.unmodifiable(_recentActivity);
+
   static const List<_IndicatorRule> _rules = [
     // Urgency and pressure.
     _IndicatorRule('urgent', 'Urgency or pressure', 12),
@@ -65,27 +125,75 @@ class ScanProvider extends ChangeNotifier {
     _IndicatorRule('limited time', 'Urgency or pressure', 12),
     _IndicatorRule('within 24 hours', 'Urgency or pressure', 15),
     _IndicatorRule('final warning', 'Urgency or pressure', 18),
-    _IndicatorRule('account will be suspended', 'Urgency or pressure', 22),
-    _IndicatorRule('immediate action required', 'Urgency or pressure', 18),
+    _IndicatorRule(
+      'account will be suspended',
+      'Urgency or pressure',
+      22,
+    ),
+    _IndicatorRule(
+      'immediate action required',
+      'Urgency or pressure',
+      18,
+    ),
 
-    // Credentials and sensitive information.
-    _IndicatorRule('share your otp', 'Sensitive information request', 30),
-    _IndicatorRule('send your otp', 'Sensitive information request', 30),
-    _IndicatorRule('tell me the otp', 'Sensitive information request', 30),
-    _IndicatorRule('one-time password', 'Sensitive information request', 25),
-    _IndicatorRule('verification code', 'Sensitive information request', 25),
+    // Sensitive information requests.
+    _IndicatorRule(
+      'share your otp',
+      'Sensitive information request',
+      30,
+    ),
+    _IndicatorRule(
+      'send your otp',
+      'Sensitive information request',
+      30,
+    ),
+    _IndicatorRule(
+      'tell me the otp',
+      'Sensitive information request',
+      30,
+    ),
+    _IndicatorRule(
+      'one-time password',
+      'Sensitive information request',
+      25,
+    ),
+    _IndicatorRule(
+      'verification code',
+      'Sensitive information request',
+      25,
+    ),
     _IndicatorRule(
       'confirm your password',
       'Sensitive information request',
       30,
     ),
-    _IndicatorRule('enter your pin', 'Sensitive information request', 30),
-    _IndicatorRule('card cvv', 'Sensitive information request', 30),
-    _IndicatorRule('bank details', 'Sensitive information request', 25),
-    _IndicatorRule('account credentials', 'Sensitive information request', 30),
-    _IndicatorRule('login credentials', 'Sensitive information request', 30),
+    _IndicatorRule(
+      'enter your pin',
+      'Sensitive information request',
+      30,
+    ),
+    _IndicatorRule(
+      'card cvv',
+      'Sensitive information request',
+      30,
+    ),
+    _IndicatorRule(
+      'bank details',
+      'Sensitive information request',
+      25,
+    ),
+    _IndicatorRule(
+      'account credentials',
+      'Sensitive information request',
+      30,
+    ),
+    _IndicatorRule(
+      'login credentials',
+      'Sensitive information request',
+      30,
+    ),
 
-    // Money and payment pressure.
+    // Money and payment requests.
     _IndicatorRule('send money', 'Payment request', 25),
     _IndicatorRule('transfer money', 'Payment request', 25),
     _IndicatorRule('processing fee', 'Payment request', 25),
@@ -110,12 +218,28 @@ class ScanProvider extends ChangeNotifier {
     _IndicatorRule('lottery winner', 'Unexpected reward', 20),
     _IndicatorRule('you have won', 'Unexpected reward', 18),
     _IndicatorRule('cash reward', 'Unexpected reward', 15),
-    _IndicatorRule('selected for a reward', 'Unexpected reward', 18),
+    _IndicatorRule(
+      'selected for a reward',
+      'Unexpected reward',
+      18,
+    ),
 
-    // Account and identity requests.
-    _IndicatorRule('verify your account', 'Account verification pressure', 20),
-    _IndicatorRule('account suspended', 'Account verification pressure', 22),
-    _IndicatorRule('unlock your account', 'Account verification pressure', 20),
+    // Account verification.
+    _IndicatorRule(
+      'verify your account',
+      'Account verification pressure',
+      20,
+    ),
+    _IndicatorRule(
+      'account suspended',
+      'Account verification pressure',
+      22,
+    ),
+    _IndicatorRule(
+      'unlock your account',
+      'Account verification pressure',
+      20,
+    ),
     _IndicatorRule('update kyc', 'Account verification pressure', 20),
     _IndicatorRule('kyc expired', 'Account verification pressure', 20),
     _IndicatorRule(
@@ -123,20 +247,36 @@ class ScanProvider extends ChangeNotifier {
       'Account verification pressure',
       20,
     ),
-    _IndicatorRule('account blocked', 'Account verification pressure', 20),
-    _IndicatorRule('click here to verify', 'Account verification pressure', 22),
+    _IndicatorRule(
+      'account blocked',
+      'Account verification pressure',
+      20,
+    ),
+    _IndicatorRule(
+      'click here to verify',
+      'Account verification pressure',
+      22,
+    ),
 
-    // Impersonation-related phrases.
+    // Possible impersonation.
     _IndicatorRule('police case', 'Possible impersonation', 20),
     _IndicatorRule('customs department', 'Possible impersonation', 15),
-    _IndicatorRule('income tax department', 'Possible impersonation', 15),
+    _IndicatorRule(
+      'income tax department',
+      'Possible impersonation',
+      15,
+    ),
     _IndicatorRule('bank security team', 'Possible impersonation', 20),
     _IndicatorRule('official support', 'Possible impersonation', 10),
 
-    // Requests for secrecy.
+    // Secrecy requests.
     _IndicatorRule('do not tell anyone', 'Secrecy request', 18),
     _IndicatorRule("don't tell anyone", 'Secrecy request', 18),
-    _IndicatorRule('keep this confidential', 'Secrecy request', 15),
+    _IndicatorRule(
+      'keep this confidential',
+      'Secrecy request',
+      15,
+    ),
   ];
 
   static final RegExp _urlPattern = RegExp(
@@ -159,43 +299,64 @@ class ScanProvider extends ChangeNotifier {
     'rebrand.ly',
   ];
 
-  bool? get isSuspicious => _isSuspicious;
+  // Load saved statistics and history before the app is displayed.
+  Future<void> load() async {
+    if (_isLoaded) return;
 
-  List<String> get matchedWords => List.unmodifiable(_matchedWords);
+    try {
+      final prefs = await SharedPreferences.getInstance();
 
-  List<String> get categories => List.unmodifiable(_categories);
+      _totalScans = prefs.getInt(_totalScansKey) ?? 0;
+      _warningsFound = prefs.getInt(_warningsFoundKey) ?? 0;
 
-  List<String> get detectedUrls => List.unmodifiable(_detectedUrls);
+      final rawHistory = prefs.getString(_recentActivityKey);
 
-  int get riskScore => _riskScore;
+      if (rawHistory != null) {
+        final decoded = jsonDecode(rawHistory);
 
-  String get riskLevel => _riskLevel;
+        if (decoded is List) {
+          final activities = <ScanActivity>[];
 
-  int get totalScans => _totalScans;
+          for (final item in decoded) {
+            if (item is Map) {
+              activities.add(
+                ScanActivity.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              );
+            }
+          }
 
-  int get warningsFound => _warningsFound;
+          _recentActivity
+            ..clear()
+            ..addAll(activities.take(5));
+        }
+      }
+    } catch (error) {
+      debugPrint('Unable to load scan history: $error');
+    }
 
-  List<ScanActivity> get recentActivity => List.unmodifiable(_recentActivity);
+    _isLoaded = true;
+    notifyListeners();
+  }
 
   void checkMessage(String message) {
     final lowerMessage = message.trim().toLowerCase();
 
     final matchedRules = <_IndicatorRule>[];
 
-    // Match configured phrases.
     for (final rule in _rules) {
       if (lowerMessage.contains(rule.phrase)) {
         matchedRules.add(rule);
       }
     }
 
-    // Find URLs without opening or requesting them.
+    // Identify URLs without opening them.
     final urls = _urlPattern
         .allMatches(message)
         .map((match) => match.group(0)!)
         .toList();
 
-    // Check for shortened links.
     final hasShortenedLink = urls.any((url) {
       final normalized = url.toLowerCase().startsWith('www.')
           ? 'https://$url'
@@ -219,23 +380,29 @@ class ScanProvider extends ChangeNotifier {
       );
     }
 
-    // Check for URLs that use an IP address as their host.
     if (_ipUrlPattern.hasMatch(message)) {
       matchedRules.add(
-        const _IndicatorRule('URL uses a raw IP address', 'Unusual URL', 30),
+        const _IndicatorRule(
+          'URL uses a raw IP address',
+          'Unusual URL',
+          30,
+        ),
       );
     }
 
-    // Store matched phrases for the result card.
-    _matchedWords = matchedRules.map((rule) => rule.phrase).toSet().toList();
+    _matchedWords = matchedRules
+        .map((rule) => rule.phrase)
+        .toSet()
+        .toList();
 
-    // Store unique categories.
-    _categories = matchedRules.map((rule) => rule.category).toSet().toList();
+    _categories = matchedRules
+        .map((rule) => rule.category)
+        .toSet()
+        .toList();
 
     _detectedUrls = urls;
 
-    // Use the highest weight within each category so
-    // repeated related phrases do not inflate the score.
+    // Avoid inflating a score with repeated phrases from the same category.
     final categoryWeights = <String, int>{};
 
     for (final rule in matchedRules) {
@@ -266,14 +433,12 @@ class ScanProvider extends ChangeNotifier {
       _riskLevel = 'No indicators found';
     }
 
-    // Update session statistics.
     _totalScans++;
 
     if (_isSuspicious!) {
       _warningsFound++;
     }
 
-    // Record scan activity without storing the full message.
     _recentActivity.insert(
       0,
       ScanActivity(
@@ -292,6 +457,7 @@ class ScanProvider extends ChangeNotifier {
     }
 
     notifyListeners();
+    _queueSave();
   }
 
   void clearResult() {
@@ -308,7 +474,34 @@ class ScanProvider extends ChangeNotifier {
     _riskScore = 0;
     _riskLevel = 'Not scanned';
 
-    // Keep statistics and history intact.
+    // Clearing the visible result does not erase saved history.
     notifyListeners();
+  }
+
+  void _queueSave() {
+    // Capture a consistent snapshot for this save operation.
+    final totalScans = _totalScans;
+    final warningsFound = _warningsFound;
+
+    final historyJson = jsonEncode(
+      _recentActivity.map((activity) => activity.toJson()).toList(),
+    );
+
+    _pendingSave = _pendingSave.then((_) async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+
+        await prefs.setInt(_totalScansKey, totalScans);
+        await prefs.setInt(_warningsFoundKey, warningsFound);
+        await prefs.setString(_recentActivityKey, historyJson);
+      } catch (error) {
+        debugPrint('Unable to save scan history: $error');
+      }
+    });
+  }
+
+  // Useful for tests that need to wait for the queued save to finish.
+  Future<void> flushPendingSave() async {
+    await _pendingSave;
   }
 }
